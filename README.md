@@ -1,3 +1,5 @@
+PROTOYPE LINK-(https://web-3-stellar.vercel.app)
+
 GeoLedger brings radical transparency to philanthropy using Stellar blockchain. Donors see their money's journey on an interactive map and receive NFT proof of impact. We turn charitable giving from a leap of faith into a verifiable, tracked journey.
 IDEA  : -
 GeoLedger transforms charity with blockchain transparency. Every donation creates an NFT receipt and shows real impact on a live map. We make giving as trackable as a delivery, rebuilding trust in philanthropy.
