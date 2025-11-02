@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "name": "Haryana Relief Foundation",
+    "lat": 28.4595,
+    "lon": 77.0266,
+    "location": "Gurgaon, Haryana",
+    "sector": "Disaster Relief",
+    "impactMetric": "5000+ beneficiaries"
+  },
+  {
+    "id": 2,
+    "name": "Rural Education Trust",
+    "lat": 28.7041,
+    "lon": 77.1025,
+    "location": "Delhi",
+    "sector": "Education",
+    "impactMetric": "2500+ students"
+  },
+  {
+    "id": 3,
+    "name": "Health for All Initiative",
+    "lat": 12.9716,
+    "lon": 77.5946,
+    "location": "Bangalore, Karnataka",
+    "sector": "Healthcare",
+    "impactMetric": "1000+ clinics"
+  },
+  {
+    "id": 4,
+    "name": "Kerala Aid Network",
+    "lat": 9.9312,
+    "lon": 76.2673,
+    "location": "Kochi, Kerala",
+    "sector": "Disaster Relief",
+    "impactMetric": "3200+ families"
+  }
+]

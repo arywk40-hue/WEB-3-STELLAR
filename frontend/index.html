@@ -1,0 +1,680 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>GeoLedger — Transparent Donation Tracker</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-600: #4b5563;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--gray-100);
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+    
+    .app-container {
+      display: flex;
+      height: 100vh;
+    }
+    
+    /* Sidebar */
+    .sidebar {
+      width: 380px;
+      background: white;
+      border-right: 1px solid var(--gray-200);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+    }
+    
+    .header {
+      padding: 24px;
+      border-bottom: 1px solid var(--gray-200);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+    }
+    
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    
+    .header .subtitle {
+      opacity: 0.9;
+      font-size: 0.875rem;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 20px;
+    }
+    
+    .stat-card {
+      background: var(--gray-100);
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--gray-600);
+      margin-top: 4px;
+    }
+    
+    .donation-form {
+      padding: 0 20px 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--gray-600);
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+    
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    .btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      width: 100%;
+    }
+    
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+    
+    .recent-donations {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      border-top: 1px solid var(--gray-200);
+    }
+    
+    .recent-donations h3 {
+      font-size: 1rem;
+      margin-bottom: 16px;
+      color: var(--gray-800);
+    }
+    
+    .donation-item {
+      padding: 12px;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      background: white;
+    }
+    
+    .donation-amount {
+      font-weight: 600;
+      color: var(--primary);
+      font-size: 1.125rem;
+    }
+    
+    .donation-meta {
+      font-size: 0.75rem;
+      color: var(--gray-600);
+      margin-top: 4px;
+    }
+    
+    /* Map */
+    .map-container {
+      flex: 1;
+      position: relative;
+    }
+    
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+    
+    .map-overlay {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: white;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      z-index: 1000;
+      min-width: 200px;
+    }
+
+    /* Journey timeline panel */
+    .timeline-panel {
+      position: absolute;
+      left: 20px;
+      bottom: 20px;
+      background: white;
+      padding: 12px;
+      border-radius: 10px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+      z-index: 1200;
+      min-width: 260px;
+      max-width: 360px;
+      font-size: 0.9rem;
+    }
+
+    .timeline-stage {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--gray-200);
+    }
+
+    .timeline-stage:last-child { border-bottom: none; }
+
+    .timeline-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 0.875rem;
+    }
+    
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      margin-right: 8px;
+      border: 2px solid white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .app-container {
+        flex-direction: column;
+      }
+      
+      .sidebar {
+        width: 100%;
+        height: 50vh;
+      }
+      
+      .map-container {
+        height: 50vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="header">
+        <h1>GeoLedger</h1>
+        <div class="subtitle">Transparent Donation Tracker • Powered by Stellar & Soroban</div>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="total-donations">3</div>
+          <div class="stat-label">Total Donations</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="total-amount">27 XLM</div>
+          <div class="stat-label">Total Amount</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="active-projects">2</div>
+          <div class="stat-label">Active Projects</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="avg-donation">9 XLM</div>
+          <div class="stat-label">Avg Donation</div>
+        </div>
+      </div>
+      
+  <div class="donation-form">
+        <h3>Simulate Donation</h3>
+        <div class="form-group">
+          <label for="project-select">Project</label>
+          <select id="project-select" class="form-control">
+            <option value="1">Disaster Relief - Kerala Floods</option>
+            <option value="2">Education - Rural Schools</option>
+            <option value="3">Healthcare - Mobile Clinics</option>
+          </select>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label for="lat">Latitude</label>
+            <input type="number" id="lat" class="form-control" value="28.3910" step="0.0001">
+          </div>
+          <div class="form-group">
+            <label for="lon">Longitude</label>
+            <input type="number" id="lon" class="form-control" value="76.9540" step="0.0001">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="amount">Amount (XLM)</label>
+          <input type="number" id="amount" class="form-control" value="10" min="1">
+        </div>
+        
+        <button id="donate-btn" class="btn btn-primary">
+          <span>✨ Simulate Donation</span>
+        </button>
+      </div>
+      <div style="padding: 12px 20px; border-top: 1px solid var(--gray-200);">
+        <h4 style="margin-bottom:8px; font-size:0.95rem;">Map Layers</h4>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <input type="checkbox" id="toggle-donations" checked>
+          <span>Show Donation Sources</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="toggle-ngos" checked>
+          <span>Show NGO Recipients</span>
+        </label>
+      </div>
+
+      <div class="recent-donations">
+        <h3>Recent Donations</h3>
+        <div id="donations-list">
+          <!-- Donation items will be populated here -->
+        </div>
+      </div>
+    </div>
+    
+    <!-- Map -->
+    <div class="map-container">
+      <div id="map"></div>
+      <div class="map-overlay">
+        <h4 style="margin-bottom: 12px; font-size: 0.875rem;">Donation Legend</h4>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #10b981;"></div>
+          <span>Small (&lt; 5 XLM)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #2563eb;"></div>
+          <span>Medium (5-15 XLM)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #f59e0b;"></div>
+          <span>Large (&gt; 15 XLM)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Donations will be loaded from /api/donations
+    let donations = [];
+
+    // Initialize map
+    const map = L.map('map').setView([28.3910, 76.9540], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, 
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+  const donorsLayer = L.layerGroup().addTo(map);
+  const ngosLayer = L.layerGroup().addTo(map);
+
+    // Format timestamp
+    function formatTime(timestamp) {
+      return new Date(timestamp).toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    }
+
+    // Update statistics
+    function updateStats() {
+      const totalDonations = donations.length;
+      const totalAmount = donations.reduce((sum, d) => sum + d.amount, 0);
+      const activeProjects = new Set(donations.map(d => d.project_id)).size;
+      const avgDonation = totalDonations > 0 ? (totalAmount / totalDonations).toFixed(1) : 0;
+
+      document.getElementById('total-donations').textContent = totalDonations;
+      document.getElementById('total-amount').textContent = totalAmount + ' XLM';
+      document.getElementById('active-projects').textContent = activeProjects;
+      document.getElementById('avg-donation').textContent = avgDonation + ' XLM';
+    }
+
+    // Render donations list
+    function renderDonationsList() {
+      const list = document.getElementById('donations-list');
+      list.innerHTML = '';
+      
+      donations.slice(0, 5).forEach(donation => {
+        const item = document.createElement('div');
+        item.className = 'donation-item';
+        item.innerHTML = `
+          <div class="donation-amount">${donation.amount} XLM</div>
+          <div class="donation-meta">
+            Project: ${donation.project_name}<br>
+            Time: ${formatTime(donation.timestamp)}<br>
+            Donor: ${donation.donor.substring(0, 8)}...
+          </div>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    // Render map markers
+    async function renderMap() {
+      donorsLayer.clearLayers();
+      ngosLayer.clearLayers();
+
+      // donation markers
+      donations.forEach(donation => {
+        const color = donation.amount >= 15 ? '#f59e0b' : donation.amount >= 5 ? '#2563eb' : '#10b981';
+
+        const marker = L.circleMarker([donation.lat, donation.lon], {
+          radius: Math.max(8, Math.min(20, donation.amount)),
+          fillColor: color,
+          color: '#ffffff',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.8
+        }).addTo(donorsLayer);
+
+        marker.bindPopup(`
+          <div style="min-width: 200px;">
+            <h4 style="margin: 0 0 8px 0; color: var(--primary);">${donation.amount} XLM Donation</h4>
+            <p style="margin: 4px 0; font-size: 0.875rem;"><strong>Project:</strong> ${donation.project_name}</p>
+            <p style="margin: 4px 0; font-size: 0.875rem;"><strong>Donor:</strong> ${donation.donor}</p>
+            <p style="margin: 4px 0; font-size: 0.875rem;"><strong>Time:</strong> ${formatTime(donation.timestamp)}</p>
+            <p style="margin: 8px 0 0 0; font-size: 0.75rem; color: #666;">Verified on Stellar Blockchain</p>
+          </div>
+        `);
+
+        // clicking a donation will show its journey animation
+        marker.on('click', () => {
+          // build an enhanced donation object with donor_location and recipient_location
+          const enhanced = {
+            donor: donation.donor,
+            donor_location: { lat: donation.lat, lon: donation.lon },
+            recipient_location: { lat: donation.project_lat || 28.3910, lon: donation.project_lon || 76.9540 },
+            amount: donation.amount,
+            status: donation.status || 'completed',
+            timeline: donation.timeline || [
+              { stage: 'sent', timestamp: donation.timestamp, location: 'Donor Location' },
+              { stage: 'processing', timestamp: donation.timestamp + 60*1000, location: 'Network' },
+              { stage: 'received', timestamp: donation.timestamp + 2*60*1000, location: 'Project Site' }
+            ]
+          };
+
+          showJourney(enhanced);
+        });
+      });
+
+      // NGO markers (fetched from API)
+      try {
+        const res = await fetch('/api/ngos');
+        if (res.ok) {
+          const ngos = await res.json();
+          ngos.forEach(ngo => {
+            const div = L.divIcon({
+              html: `<div style=\"width:26px;height:26px;background:#065f46;color:white;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:16px;\">🏢</div>`,
+              className: '',
+              iconSize: [26,26]
+            });
+
+            const marker = L.marker([ngo.lat, ngo.lon], { icon: div }).addTo(ngosLayer);
+            marker.bindPopup(`
+              <div style="min-width:200px;">
+                <h4 style="margin:0 0 8px 0;color:var(--primary);">${ngo.name}</h4>
+                <p style="margin:4px 0;font-size:0.875rem;"><strong>Location:</strong> ${ngo.location}</p>
+                <p style="margin:4px 0;font-size:0.875rem;"><strong>Sector:</strong> ${ngo.sector}</p>
+                <p style="margin:4px 0;font-size:0.875rem;"><strong>Impact:</strong> ${ngo.impactMetric}</p>
+              </div>
+            `);
+          });
+        }
+      } catch (e) {
+        console.warn('Could not fetch NGOs', e);
+      }
+
+      // respect toggles
+      document.getElementById('toggle-donations').checked ? donorsLayer.addTo(map) : donorsLayer.remove();
+      document.getElementById('toggle-ngos').checked ? ngosLayer.addTo(map) : ngosLayer.remove();
+    }
+
+    // --- Journey visualization helpers ---
+    const journeyLayer = L.layerGroup().addTo(map);
+    const particleLayer = L.layerGroup().addTo(map);
+
+    // draw a smooth cubic Bezier curve between two latlngs
+    function drawBezier(fromLatLng, toLatLng, options = {}) {
+      const latlngs = [];
+      // control points are computed by offsetting from/to points
+      const p0 = map.latLngToLayerPoint(fromLatLng);
+      const p3 = map.latLngToLayerPoint(toLatLng);
+
+      const dx = p3.x - p0.x;
+      const dy = p3.y - p0.y;
+
+      const cp1 = L.point(p0.x + dx * 0.25 - dy * 0.1, p0.y + dy * 0.25 + dx * 0.05);
+      const cp2 = L.point(p0.x + dx * 0.75 + dy * 0.1, p0.y + dy * 0.75 - dx * 0.05);
+
+      // sample N points along cubic bezier
+      const N = options.steps || 120;
+      for (let t = 0; t <= 1; t += 1 / N) {
+        const x = Math.pow(1 - t, 3) * p0.x + 3 * Math.pow(1 - t, 2) * t * cp1.x + 3 * (1 - t) * Math.pow(t, 2) * cp2.x + Math.pow(t, 3) * p3.x;
+        const y = Math.pow(1 - t, 3) * p0.y + 3 * Math.pow(1 - t, 2) * t * cp1.y + 3 * (1 - t) * Math.pow(t, 2) * cp2.y + Math.pow(t, 3) * p3.y;
+        latlngs.push(map.layerPointToLatLng(L.point(x, y)));
+      }
+
+      const poly = L.polyline(latlngs, { color: options.color || '#f59e0b', weight: options.weight || 3, opacity: options.opacity || 0.9 }).addTo(journeyLayer);
+      return { poly, latlngs };
+    }
+
+    // animate a particle along latlngs
+    function animateFlow(latlngs, opts = {}) {
+      particleLayer.clearLayers();
+      const marker = L.circleMarker(latlngs[0], { radius: 6, color: opts.color || '#2563eb', fillColor: opts.color || '#2563eb', fillOpacity: 1 }).addTo(particleLayer);
+      let idx = 0;
+      const speed = opts.speed || 2; // pixels per frame index step
+
+      function step() {
+        idx += speed;
+        if (idx >= latlngs.length - 1) {
+          marker.setLatLng(latlngs[latlngs.length - 1]);
+          return; // stop at the end
+        }
+        marker.setLatLng(latlngs[Math.floor(idx)]);
+        requestAnimationFrame(step);
+      }
+
+      requestAnimationFrame(step);
+      return marker;
+    }
+
+    // show timeline in a small panel and animate
+    function showJourney(donation) {
+      journeyLayer.clearLayers();
+      particleLayer.clearLayers();
+
+      const from = L.latLng(donation.donor_location.lat, donation.donor_location.lon);
+      const to = L.latLng(donation.recipient_location.lat, donation.recipient_location.lon);
+
+      const { poly, latlngs } = drawBezier(from, to, { color: donation.status === 'completed' ? '#10b981' : '#f59e0b', weight: 3 });
+      map.fitBounds(poly.getBounds(), { padding: [60, 60] });
+
+      const particle = animateFlow(latlngs, { color: donation.status === 'completed' ? '#10b981' : '#f59e0b', speed: 1.5 });
+
+      // build timeline panel
+      let panel = document.getElementById('timeline-panel');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'timeline-panel';
+        panel.className = 'timeline-panel';
+        document.body.appendChild(panel);
+      }
+
+      panel.innerHTML = `<div style="font-weight:700;margin-bottom:8px;">Donation Journey — ${donation.amount} XLM</div>`;
+      donation.timeline.forEach(stage => {
+        const row = document.createElement('div');
+        row.className = 'timeline-stage';
+        const dot = document.createElement('div');
+        dot.className = 'timeline-dot';
+        dot.style.background = stage.stage === 'received' ? 'var(--success)' : stage.stage === 'processing' ? 'var(--warning)' : 'var(--primary)';
+        row.appendChild(dot);
+        const text = document.createElement('div');
+        text.innerHTML = `<div style="font-weight:600">${stage.stage}</div><div style="font-size:0.8rem;color:var(--gray-600)">${new Date(stage.timestamp).toLocaleString()} — ${stage.location}</div>`;
+        row.appendChild(text);
+        panel.appendChild(row);
+      });
+
+      // remove panel when clicked outside
+      panel.addEventListener('click', (e) => e.stopPropagation());
+      map.once('click', () => { panel.remove(); journeyLayer.clearLayers(); particleLayer.clearLayers(); });
+    }
+
+    // Fetch donations from API
+    async function fetchDonations() {
+      try {
+        const res = await fetch('/api/donations');
+        if (!res.ok) throw new Error('Failed to fetch');
+        donations = await res.json();
+      } catch (e) {
+        console.warn('Could not load donations from API, falling back to empty list', e);
+        donations = [];
+      }
+      renderAll();
+    }
+
+    // Initial render
+    function renderAll() {
+      renderMap();
+      updateStats();
+      renderDonationsList();
+    }
+
+    // Donation button handler
+    document.getElementById('donate-btn').addEventListener('click', () => {
+      const lat = parseFloat(document.getElementById('lat').value);
+      const lon = parseFloat(document.getElementById('lon').value);
+      const amount = parseFloat(document.getElementById('amount').value);
+      const projectSelect = document.getElementById('project-select');
+      const projectId = parseInt(projectSelect.value);
+      const projectName = projectSelect.options[projectSelect.selectedIndex].text;
+
+      if (!lat || !lon || !amount) {
+        alert('Please fill in all fields');
+        return;
+      }
+
+      const newDonation = {
+        donor: 'G' + Math.random().toString(36).slice(2, 16).toUpperCase(),
+        amount: amount,
+        lat: lat,
+        lon: lon,
+        timestamp: Date.now(),
+        project_id: projectId,
+        project_name: projectName
+      };
+
+      // Optimistic UI update
+      donations.unshift(newDonation);
+      renderAll();
+
+      // POST to backend API
+      fetch('/api/donations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDonation),
+      }).then(res => {
+        if (!res.ok) throw new Error('Failed to save donation');
+        // show success feedback
+        const btn = document.getElementById('donate-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '✅ Donation Recorded!';
+        btn.style.background = '#10b981';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.background = '';
+        }, 2000);
+      }).catch(err => {
+        console.error(err);
+        alert('Failed to save donation to API');
+      });
+    });
+
+    // toggles
+    document.getElementById('toggle-donations').addEventListener('change', (e) => {
+      if (e.target.checked) donorsLayer.addTo(map); else donorsLayer.remove();
+    });
+    document.getElementById('toggle-ngos').addEventListener('change', (e) => {
+      if (e.target.checked) ngosLayer.addTo(map); else ngosLayer.remove();
+    });
+
+    // Initialize - prefer live data from server
+    fetchDonations();
+
+  // No hard-coded sample donations anymore; server provides data
+  </script>
+</body>
+</html>
